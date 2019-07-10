@@ -4,6 +4,7 @@
 #include <string>
 #include "json.hpp"
 #include "PID.h"
+#include "twiddle.h"
 
 // for convenience
 using nlohmann::json;
@@ -30,17 +31,14 @@ string hasData(string s) {
   return "";
 }
 
-int best_num_steps = 0;
-double best_total_error = 0;
-
-int num_steps = 0;
-double total_error = 0;
-double dp[3] = {0.1, 0.1, 0.1};
-double params[3] = {0, 0, 0};
-int trial[3] = {0, 0, 0};
-int pidx = 0;
+// initialize pid
 PID pid;
 
+// initialize twiddle for parameter optimization
+Twiddle twiddle;
+int num_steps = 0;
+int best_num_steps = 0;
+double total_error = 0;
 
 int main() {
   uWS::Hub h;
@@ -72,19 +70,22 @@ int main() {
           double cte = std::stod(j[1]["cte"].get<string>());
           double speed = std::stod(j[1]["speed"].get<string>());
           double angle = std::stod(j[1]["steering_angle"].get<string>());
-
-          pid.UpdateError(cte);
-          double steer_value = pid.ControlValue();
-          ++num_steps;
-          total_error = pid.TotalError();
-
+          
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-          
+          pid.UpdateError(cte);
+          double steer_value = pid.ControlValue();
+          ++num_steps;
+          total_error = pid.TotalError();
+
+          if (fabs(cte) >= 2.0) {
+            std::cout << "CTE: " << cte << std::endl;
+          }
+
           // DEBUG
           //std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
           //          << std::endl;
@@ -109,36 +110,25 @@ int main() {
     std::cout << "num_steps: " << num_steps << " best_num_steps: " << best_num_steps << std::endl;
 
     if(num_steps > 0) {
-      if (num_steps > best_num_steps || (num_steps == best_num_steps && total_error < best_total_error)) {
-        best_num_steps = num_steps;
-        best_total_error = total_error;
+      double reward = num_steps * 100 - total_error;
+      twiddle.update(reward);
 
-        dp[pidx] *= 1.1;
-        trial[pidx] = 0;
-      }
-      else if (num_steps < best_num_steps || (num_steps == best_num_steps && total_error > best_total_error)) {
-        params[pidx] -= dp[pidx];
-        dp[pidx] = -dp[pidx];
-        trial[pidx] += 1;
-        if (trial[pidx] == 2) {
-          dp[pidx] *= 0.9;
-          trial[pidx] = 0;
-        }
-      }
-      ++pidx;
-      if (pidx == 3) {
-        pidx = 0;
+      if (num_steps > best_num_steps) {
+        best_num_steps = num_steps;
       }
     }
+    else {
+      twiddle.init(vector<double>(3, 0.0), vector<double>(3, 1.0));
+    }
 
-
+    // reset
     num_steps = 0;
     total_error = 0;
-    params[pidx] += dp[pidx];
+    const vector<double>& params = twiddle.getParams();   
     std::cout << "param: " << params[0] << " " << params[1] << " " << params[2] << std::endl;
-    pid.Init(params[0], params[1], params[2]);
 
-   
+    // set pid parameters
+    pid.Init(params[0], params[1], params[2]);
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, 
