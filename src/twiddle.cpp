@@ -1,4 +1,8 @@
+#include <numeric>
+#include <iostream>
 #include "twiddle.h"
+
+using namespace std;
 
 Twiddle::Twiddle()
     : _params      ()
@@ -72,4 +76,23 @@ void Twiddle::update(double reward) {
 const vector<double>& Twiddle::getParams() const {
     return _params;
 }
-    
+
+bool Twiddle::done() {
+    double sum = accumulate(_steps.begin(), _steps.end(), 0.0);
+    return (sum < _tolerance);
+}
+
+// show parameters
+void Twiddle::showParams() const {
+    cout << "params: " << endl;
+    for (int i = 0; i < _params.size(); ++i) {
+        cout << _params[i] << " ";
+    }
+    cout << endl;
+
+    cout << "steps: " << endl;
+    for (int i = 0; i < _params.size(); ++i) {
+        cout << _steps[i] << " ";
+    }
+    cout << endl;
+}

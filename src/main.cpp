@@ -86,6 +86,26 @@ int main() {
             std::cout << "CTE: " << cte << std::endl;
           }
 
+          if (num_steps == 2000) {
+            double reward = num_steps * 100 - total_error;
+            twiddle.update(reward);
+
+            // reset
+            num_steps = 0;
+            total_error = 0;
+            const vector<double>& params = twiddle.getParams(); 
+            std::cout << "total error: " << total_error << std::endl; 
+            twiddle.showParams();
+
+            // set pid parameters
+            pid.Init(params[0], params[1], params[2]);
+          }
+
+          if (twiddle.done()) {
+            twiddle.showParams();
+            exit(0);
+          }
+
           // DEBUG
           //std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
           //          << std::endl;
@@ -124,10 +144,10 @@ int main() {
     // reset
     num_steps = 0;
     total_error = 0;
-    const vector<double>& params = twiddle.getParams();   
-    std::cout << "param: " << params[0] << " " << params[1] << " " << params[2] << std::endl;
+    twiddle.showParams();
 
     // set pid parameters
+    const vector<double>& params = twiddle.getParams();
     pid.Init(params[0], params[1], params[2]);
   });
 

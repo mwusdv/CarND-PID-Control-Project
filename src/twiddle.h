@@ -20,6 +20,12 @@ public:
     // get parameters
     const vector<double>& getParams() const;
 
+    // done with parameter optimization?
+    bool done();
+
+    // show parameters
+    void showParams() const;
+    
 protected:
     double _tolerance;
     vector<double> _params;
