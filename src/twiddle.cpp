@@ -37,7 +37,9 @@ void Twiddle::init(const vector<double>& init_params, const vector<double>& init
 }
 
 // update parameters according to current reward
-void Twiddle::update(double reward) {
+void Twiddle::update(int num_steps, double total_error) {
+    double reward = num_steps * 10 - total_error;
+    
     // result is improved
     if (reward > _best_reward) {
         // update best reward

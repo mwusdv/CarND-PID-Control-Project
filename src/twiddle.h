@@ -15,7 +15,7 @@ public:
               double tolerance=0.2, double expansion=1.1, double shrink=0.9);
 
     // update parameters according to current reward
-    void update(double reward);
+    void update(int num_steps, double total_error);
 
     // get parameters
     const vector<double>& getParams() const;

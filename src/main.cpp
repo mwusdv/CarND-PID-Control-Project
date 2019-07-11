@@ -87,8 +87,7 @@ int main() {
           }
 
           if (num_steps == 2000) {
-            double reward = num_steps * 100 - total_error;
-            twiddle.update(reward);
+            twiddle.update(num_steps, total_error);
 
             // reset
             num_steps = 0;
@@ -130,8 +129,7 @@ int main() {
     std::cout << "num_steps: " << num_steps << " best_num_steps: " << best_num_steps << std::endl;
 
     if(num_steps > 0) {
-      double reward = num_steps * 100 - total_error;
-      twiddle.update(reward);
+      twiddle.update(num_steps, total_error);
 
       if (num_steps > best_num_steps) {
         best_num_steps = num_steps;
