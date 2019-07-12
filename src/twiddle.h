@@ -1,5 +1,5 @@
-#ifndef _TWIDDLE_H_
-#define TWICDLE_H_
+#ifndef TWIDDLE_H_
+#define TWIDDLE_H_
 
 #include <vector>
 #include "DriveStats.h"
