@@ -39,7 +39,7 @@ PID throttle_pid;
 // constants
 const double circle_dist = 45000;
 const double base_throttle = 0.8;
-const double min_throttle = 0.3;
+const double min_throttle = 0.25;
 
 // initialize twiddle for parameter optimization
 Twiddle twiddle(circle_dist);
@@ -165,9 +165,11 @@ int main() {
       twiddle.update(num_steps, total_error, total_dist);
     }
     else {
-      double tolerance = 0.2;
-      vector<double> steps = {0.2, 0.2, 2.0, 1.0, 1.0, 1.0};
-      twiddle.init(vector<double>(6, 0.0), steps, tolerance);
+      double tolerance = 1e-8;
+      vector<double> steps = {0.15, 0.001, 1.0, 1.0, 1.0, 1.0};
+      vector<double> opt_params = {0.15, 0.009, 1, 1, 1, 1};
+      //twiddle.init(vector<double>(6, 0.0), steps, tolerance);
+      twiddle.init(opt_params, vector<double>(6, 1e-8), tolerance);
     }
 
     // reset
