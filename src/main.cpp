@@ -166,10 +166,12 @@ int main() {
     }
     else {
       double tolerance = 1e-8;
-      vector<double> steps = {0.15, 0.001, 1.0, 1.0, 1.0, 1.0};
       vector<double> opt_params = {0.15, 0.009, 1, 1, 1, 1};
+      twiddle.init(opt_params, vector<double>(6, 1e-6), tolerance);
+      
+      // double tolerance = 0.2;
+      //vector<double> steps = {0.15, 0.01, 1, 1, 1, 1};
       //twiddle.init(vector<double>(6, 0.0), steps, tolerance);
-      twiddle.init(opt_params, vector<double>(6, 1e-8), tolerance);
     }
 
     // reset
