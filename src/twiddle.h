@@ -34,6 +34,11 @@ public:
 protected:
     vector<double> _params;
     vector<double> _steps;
+
+    // record best parameters (for early stop)
+    vector<double> _best_params;
+    vector<double> _best_steps;
+
     vector<int> _trials;
     size_t _param_index;
 

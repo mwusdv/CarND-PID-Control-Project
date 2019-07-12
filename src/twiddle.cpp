@@ -8,6 +8,8 @@ using namespace std;
 Twiddle::Twiddle(double circle_dist)
     : _params      ()
     , _steps       ()
+    , _best_params ()
+    , _best_steps  ()
     , _trials      ()
     , _param_index (0)
     , _best_stats  (circle_dist)
@@ -26,6 +28,9 @@ void Twiddle::init(const vector<double>& init_params, const vector<double>& init
                 double tolerance, double expansion, double shrink) {
     _params = init_params;
     _steps = init_steps;
+    _best_params = init_params;
+    _best_steps = init_steps;
+    
     _param_index = 0;
     _tolerance = tolerance;
     _expansion = expansion;
@@ -47,6 +52,8 @@ void Twiddle::update(int num_steps, double total_error, double total_dist) {
     if (result == 1) {
         // update best stats
         _best_stats = _curr_stats;
+        _best_params = _params;
+        _best_steps = _steps;
 
         // enlarge the exploration step
         _steps[_param_index] *= _expansion;
@@ -54,8 +61,8 @@ void Twiddle::update(int num_steps, double total_error, double total_dist) {
         // clear the trail counter
         _trials[_param_index] = 0;
     }
-    // result is not improved
-    else if (_trials[_param_index] == 0){
+    // result is not improved, try another direction, but ignore negative parameters
+    else if (_trials[_param_index] == 0 && _params[_param_index] > _steps[_param_index]*2){
         // try the opposite direction
         _params[_param_index] -= _steps[_param_index] * 2;
         _trials[_param_index] = 1;
@@ -63,8 +70,9 @@ void Twiddle::update(int num_steps, double total_error, double total_dist) {
     // if both directions have been tried, shrink the 
     // exploration step   
     else {
+        double flag = _trials[_param_index] > 0? 1 : -1;
         _trials[_param_index] = 0;
-        _params[_param_index] += _steps[_param_index];
+        _params[_param_index] += _steps[_param_index]*flag;
         _steps[_param_index] *= _shrink;
     }
     
@@ -73,6 +81,7 @@ void Twiddle::update(int num_steps, double total_error, double total_dist) {
         if ((++_param_index) == _params.size()) {
             _param_index = 0;
         }
+        //  parameter cannot be negative
         _params[_param_index] += _steps[_param_index];
     }
 }
@@ -96,8 +105,20 @@ void Twiddle::showParams() const {
     cout << endl;
 
     cout << "steps: " << endl;
-    for (size_t i = 0; i < _params.size(); ++i) {
+    for (size_t i = 0; i < _steps.size(); ++i) {
         cout << _steps[i] << " ";
+    }
+    cout << endl;
+
+    cout << "Best params: " << endl;
+    for (size_t i = 0; i < _best_params.size(); ++i) {
+        cout << _best_params[i] << " ";
+    }
+    cout << endl;
+
+    cout << "Best steps: " << endl;
+    for (size_t i = 0; i < _best_steps.size(); ++i) {
+        cout << _best_steps[i] << " ";
     }
     cout << endl;
 }

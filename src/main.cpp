@@ -36,14 +36,18 @@ string hasData(string s) {
 PID steer_pid;
 PID throttle_pid;
 
-const double circle_dist = 50000;
+// constants
+const double circle_dist = 40000;
+const double base_throttle = 0.8;
+const double min_throttle = 0.3;
 
 // initialize twiddle for parameter optimization
 Twiddle twiddle(circle_dist);
+
+// status
 int num_steps = 0;
 double total_error = 0;
 double total_dist = 0;
-double base_throttle = 0.8;
 
 
 void showStatus(const Twiddle& twiddle) {
@@ -69,7 +73,7 @@ void reset(const Twiddle& twiddle, PID& steer_pid, PID& throttle_pid) {
   // set PID parameters
   const vector<double>& params = twiddle.getParams();
   steer_pid.Init(params[0], params[1], params[2]);
-  throttle_pid.Init(params[3], 0, params[4]);
+  throttle_pid.Init(params[3], params[4], params[5]);
 }
 
 int main() {
@@ -108,23 +112,24 @@ int main() {
 
           // control values
           double steer_value = max(-1.0, min(1.0, steer_pid.ControlValue()));
-          double throttle = max(0.1, min(1.0, base_throttle + throttle_pid.ControlValue()));
+          double throttle = max(min_throttle, min(1.0, base_throttle + throttle_pid.ControlValue()));
+
+          // remind to restart the driving process manually, if cte is large
+          if (fabs(cte) >= 2.3) {
+            std::cout << "CTE: " << cte << std::endl;
+
+            // if not manually restart, heavily penalize
+            cte *= 100;
+          }
 
           // update status variables
           ++num_steps;
           total_error += fabs(cte);
           total_dist += speed;
         
-          // remind to restart the driving process manually
-          if (fabs(cte) >= 2.3) {
-            std::cout << "CTE: " << cte << std::endl;
-          }
-
           // finish one circle, restart the counting process
           if (total_dist >= circle_dist) {
             twiddle.update(num_steps, total_error, total_dist);
-
-            // reset
             reset(twiddle, steer_pid, throttle_pid);    
           }
 
@@ -133,7 +138,6 @@ int main() {
             showStatus(twiddle);
             exit(0);
           }
-
           // DEBUG
           //cout << "CTE: " << cte << " Steering Value: " << steer_value << " throttle: " << throttle
           //     << " Speed: " << speed << endl;
@@ -161,7 +165,8 @@ int main() {
     }
     else {
       double tolerance = 0.2;
-      twiddle.init(vector<double>(5, 0.0), vector<double>(5, 0.2), tolerance);
+      vector<double> steps = {0.2, 0.0001, 1.0, 1.0, 0.0001, 1.0};
+      twiddle.init(vector<double>(6, 0.0), steps, tolerance);
     }
 
     // reset
