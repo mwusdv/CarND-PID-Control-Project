@@ -8,7 +8,8 @@
 
 // for convenience
 using nlohmann::json;
-using std::string;
+
+using namespace std;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -32,26 +33,49 @@ string hasData(string s) {
 }
 
 // initialize pid
-PID pid;
+PID steer_pid;
+PID throttle_pid;
+
+const double circle_dist = 50000;
 
 // initialize twiddle for parameter optimization
-Twiddle twiddle;
+Twiddle twiddle(circle_dist);
 int num_steps = 0;
-int best_num_steps = 0;
 double total_error = 0;
+double total_dist = 0;
+double base_throttle = 0.8;
+
+
+void showStatus(const Twiddle& twiddle) {
+  cout << "Parameters: " << endl;
+  twiddle.showParams();
+
+  cout << "Best stats: " << endl;
+  twiddle.showBestStats();
+
+  cout << "Current stats: " << endl;
+  twiddle.showStats();
+
+  cout << endl;
+}
+
+void reset(const Twiddle& twiddle, PID& steer_pid, PID& throttle_pid) {
+  num_steps = 0;
+  total_error = 0;
+  total_dist = 0;
+
+  showStatus(twiddle);  
+
+  // set PID parameters
+  const vector<double>& params = twiddle.getParams();
+  steer_pid.Init(params[0], params[1], params[2]);
+  throttle_pid.Init(params[3], 0, params[4]);
+}
 
 int main() {
   uWS::Hub h;
-  
 
- 
-  /**
-   * TODO: Initialize the pid variable.
-   */
-  
- 
-
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  h.onMessage([&steer_pid, &throttle_pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -77,41 +101,46 @@ int main() {
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-          pid.UpdateError(cte);
-          double steer_value = pid.ControlValue();
-          ++num_steps;
-          total_error = pid.TotalError();
 
-          if (fabs(cte) >= 2.0) {
+          // update PIDs
+          steer_pid.UpdateError(cte);
+          throttle_pid.UpdateError(fabs(cte));
+
+          // control values
+          double steer_value = max(-1.0, min(1.0, steer_pid.ControlValue()));
+          double throttle = max(0.1, min(1.0, base_throttle + throttle_pid.ControlValue()));
+
+          // update status variables
+          ++num_steps;
+          total_error += fabs(cte);
+          total_dist += speed;
+        
+          // remind to restart the driving process manually
+          if (fabs(cte) >= 2.3) {
             std::cout << "CTE: " << cte << std::endl;
           }
 
-          if (num_steps == 2000) {
-            twiddle.update(num_steps, total_error);
+          // finish one circle, restart the counting process
+          if (total_dist >= circle_dist) {
+            twiddle.update(num_steps, total_error, total_dist);
 
             // reset
-            num_steps = 0;
-            total_error = 0;
-            const vector<double>& params = twiddle.getParams(); 
-            std::cout << "total error: " << total_error << std::endl; 
-            twiddle.showParams();
-
-            // set pid parameters
-            pid.Init(params[0], params[1], params[2]);
+            reset(twiddle, steer_pid, throttle_pid);    
           }
 
           if (twiddle.done()) {
-            twiddle.showParams();
+            cout << "Done!" << endl;
+            showStatus(twiddle);
             exit(0);
           }
 
           // DEBUG
-          //std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-          //          << std::endl;
+          //cout << "CTE: " << cte << " Steering Value: " << steer_value << " throttle: " << throttle
+          //     << " Speed: " << speed << endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
@@ -126,37 +155,23 @@ int main() {
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
     std::cout << "Connected!!!" << std::endl;
-    std::cout << "num_steps: " << num_steps << " best_num_steps: " << best_num_steps << std::endl;
 
     if(num_steps > 0) {
-      twiddle.update(num_steps, total_error);
-
-      if (num_steps > best_num_steps) {
-        best_num_steps = num_steps;
-      }
+      twiddle.update(num_steps, total_error, total_dist);
     }
     else {
-      twiddle.init(vector<double>(3, 0.0), vector<double>(3, 1.0));
+      double tolerance = 0.2;
+      twiddle.init(vector<double>(5, 0.0), vector<double>(5, 0.2), tolerance);
     }
 
     // reset
-    num_steps = 0;
-    total_error = 0;
-    twiddle.showParams();
-
-    // set pid parameters
-    const vector<double>& params = twiddle.getParams();
-    pid.Init(params[0], params[1], params[2]);
+    reset(twiddle, steer_pid, throttle_pid);
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, 
                          char *message, size_t length) {
     ws.close();
     std::cout << "Disconnected" << std::endl;
- 
-   
-    
-
   });
 
   int port = 4567;
@@ -169,3 +184,4 @@ int main() {
   
   h.run();
 }
+

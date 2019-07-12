@@ -25,12 +25,6 @@ class PID {
    */
   void UpdateError(double cte);
 
-  /**
-   * Calculate the total PID error.
-   * @output The total PID error
-   */
-  double TotalError();
-
   double ControlValue();
 
  private:
@@ -40,8 +34,6 @@ class PID {
   double p_error;
   double i_error;
   double d_error;
-
-  double total_error;
 
   /**
    * PID Coefficients

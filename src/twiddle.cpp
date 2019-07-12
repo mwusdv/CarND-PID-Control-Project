@@ -1,15 +1,17 @@
 #include <numeric>
 #include <iostream>
+
 #include "twiddle.h"
 
 using namespace std;
 
-Twiddle::Twiddle()
+Twiddle::Twiddle(double circle_dist)
     : _params      ()
     , _steps       ()
     , _trials      ()
     , _param_index (0)
-    , _best_reward (0)
+    , _best_stats  (circle_dist)
+    , _curr_stats  (circle_dist)
     , _tolerance   (0)
     , _expansion   (0)
     , _shrink      (0) {
@@ -21,7 +23,7 @@ Twiddle::~Twiddle() {}
 
 // start parameter optimization
 void Twiddle::init(const vector<double>& init_params, const vector<double>& init_steps, 
-              double tolerance, double expansion, double shrink) {
+                double tolerance, double expansion, double shrink) {
     _params = init_params;
     _steps = init_steps;
     _param_index = 0;
@@ -37,13 +39,14 @@ void Twiddle::init(const vector<double>& init_params, const vector<double>& init
 }
 
 // update parameters according to current reward
-void Twiddle::update(int num_steps, double total_error) {
-    double reward = num_steps * 10 - total_error;
-    
+void Twiddle::update(int num_steps, double total_error, double total_dist) {
+    _curr_stats.update(num_steps, total_error, total_dist);
+    int result = _curr_stats.compare(_best_stats);
+
     // result is improved
-    if (reward > _best_reward) {
-        // update best reward
-        _best_reward = reward;
+    if (result == 1) {
+        // update best stats
+        _best_stats = _curr_stats;
 
         // enlarge the exploration step
         _steps[_param_index] *= _expansion;
@@ -87,14 +90,24 @@ bool Twiddle::done() {
 // show parameters
 void Twiddle::showParams() const {
     cout << "params: " << endl;
-    for (int i = 0; i < _params.size(); ++i) {
+    for (size_t i = 0; i < _params.size(); ++i) {
         cout << _params[i] << " ";
     }
     cout << endl;
 
     cout << "steps: " << endl;
-    for (int i = 0; i < _params.size(); ++i) {
+    for (size_t i = 0; i < _params.size(); ++i) {
         cout << _steps[i] << " ";
     }
     cout << endl;
+}
+
+// show current stats
+void Twiddle::showStats() const {
+    _curr_stats.print();
+}
+
+// show the best stats
+void Twiddle::showBestStats() const {
+    _best_stats.print();
 }
